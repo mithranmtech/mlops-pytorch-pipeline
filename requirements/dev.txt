@@ -1,5 +1,7 @@
-# Local development / CI tooling.
+# Local development / CI tooling. Pulls in both the training and serving
+# dependencies so the full test suite (incl. tests/test_serve.py) can run.
 -r train.txt
+-r serve.txt
 pytest==8.3.4
 httpx==0.28.1
 ruff==0.8.4
