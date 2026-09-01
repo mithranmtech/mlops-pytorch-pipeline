@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# ML artifacts / data (never commit datasets or checkpoints)
+data/
+checkpoints/
+runs/
+*.pt
+*.pth
+*.onnx
+*.ckpt
+
+# Secrets / local env
+.env
+.env.*
+*.local
+k8s/*secret*.yaml
+!k8s/*secret*.example.yaml
+
+# Smoke-test scratch
+test_image.png
+
+# Editor / OS
+.DS_Store
+.idea/
+*.swp
