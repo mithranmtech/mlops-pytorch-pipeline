@@ -97,11 +97,18 @@ def main() -> None:
     m_cfg, t_cfg = config["model"], config["training"]
     d_cfg, o_cfg = config["data"], config["output"]
 
+    # SYNTHETIC_DATA=1 swaps in random noise (no download) -- for the k8s
+    # end-to-end demo and CI when the dataset mirror is unreachable.
+    dataset_name = d_cfg["dataset"]
+    if os.environ.get("SYNTHETIC_DATA", "").lower() in ("1", "true", "yes"):
+        dataset_name = "synthetic"
+        log(event="using_synthetic_data")
+
     seed = int(t_cfg.get("seed", 42))
     set_seed(seed)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    meta = dataset_metadata(d_cfg["dataset"])
+    meta = dataset_metadata(dataset_name)
 
     model = get_model(
         architecture=m_cfg["architecture"],
@@ -111,7 +118,7 @@ def main() -> None:
 
     train_loader, val_loader = get_dataloaders(
         data_dir=d_cfg["data_dir"],
-        dataset=d_cfg["dataset"],
+        dataset=dataset_name,
         batch_size=t_cfg["batch_size"],
         num_workers=int(d_cfg.get("num_workers", 2)),
     )
@@ -171,7 +178,7 @@ def main() -> None:
                     "epoch": epoch,
                     "architecture": m_cfg["architecture"],
                     "num_classes": m_cfg["num_classes"],
-                    "dataset": d_cfg["dataset"],
+                    "dataset": dataset_name,
                     "classes": meta["classes"],
                     "norm_mean": meta["mean"],
                     "norm_std": meta["std"],

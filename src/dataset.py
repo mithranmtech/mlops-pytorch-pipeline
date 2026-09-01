@@ -31,6 +31,15 @@ _DATASETS = {
             "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot",
         ],
     },
+    # Random noise shaped like CIFAR-10. No download -- used by the Kubernetes
+    # end-to-end demo and CI when the real dataset mirror is unreachable.
+    "synthetic": {
+        "cls": None,
+        "mean": (0.4914, 0.4822, 0.4465),
+        "std": (0.2470, 0.2435, 0.2616),
+        "channels": 3,
+        "classes": [f"class_{i}" for i in range(10)],
+    },
 }
 
 
@@ -38,6 +47,8 @@ def _normalize_name(dataset: str) -> str:
     key = dataset.strip().lower().replace("-", "_")
     if key in ("fashionmnist", "fashion"):
         key = "fashion_mnist"
+    if key in ("fake", "fakedata", "random"):
+        key = "synthetic"
     if key not in _DATASETS:
         raise ValueError(f"unknown dataset {dataset!r}; expected one of {sorted(_DATASETS)}")
     return key
@@ -75,21 +86,30 @@ def get_dataloaders(
     download: bool = True,
 ) -> tuple[DataLoader, DataLoader]:
     """Build the train and validation (test split) DataLoaders."""
-    meta = _DATASETS[_normalize_name(dataset)]
-    ds_cls = meta["cls"]
+    name = _normalize_name(dataset)
+    meta = _DATASETS[name]
 
-    train_dataset = ds_cls(
-        root=data_dir,
-        train=True,
-        download=download,
-        transform=get_transforms(dataset, train=True),
-    )
-    val_dataset = ds_cls(
-        root=data_dir,
-        train=False,
-        download=download,
-        transform=get_transforms(dataset, train=False),
-    )
+    if name == "synthetic":
+        train_dataset = datasets.FakeData(
+            1024, (3, 32, 32), 10, transform=get_transforms(dataset, train=True)
+        )
+        val_dataset = datasets.FakeData(
+            256, (3, 32, 32), 10, transform=get_transforms(dataset, train=False)
+        )
+    else:
+        ds_cls = meta["cls"]
+        train_dataset = ds_cls(
+            root=data_dir,
+            train=True,
+            download=download,
+            transform=get_transforms(dataset, train=True),
+        )
+        val_dataset = ds_cls(
+            root=data_dir,
+            train=False,
+            download=download,
+            transform=get_transforms(dataset, train=False),
+        )
 
     train_loader = DataLoader(
         train_dataset,
