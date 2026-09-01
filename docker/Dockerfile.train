@@ -1,0 +1,33 @@
+# Multi-stage build for the training workload.
+#   stage "base"     -> resolve + install pinned dependencies into a venv
+#   stage "training"  -> copy only the venv + source into a clean slim image
+
+# ---- Stage 1: dependencies -------------------------------------------------
+FROM python:3.11-slim AS base
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+WORKDIR /app
+
+COPY requirements/train.txt requirements/train.txt
+RUN python -m venv /opt/venv \
+ && /opt/venv/bin/pip install --upgrade pip \
+ && /opt/venv/bin/pip install -r requirements/train.txt \
+      --extra-index-url https://download.pytorch.org/whl/cpu
+
+# ---- Stage 2: training runtime -------------------------------------------
+FROM python:3.11-slim AS training
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/opt/venv/bin:$PATH"
+WORKDIR /app
+
+COPY --from=base /opt/venv /opt/venv
+COPY src/ ./src/
+COPY configs/ ./configs/
+
+# The config is read from (in order): $TRAINING_CONFIG_PATH,
+# /app/configs/training_config.yaml (mount / ConfigMap), configs/training_config.yaml.
+# Data and checkpoints are expected on mounted volumes at /app/data and /app/checkpoints.
+ENTRYPOINT ["python", "src/train.py"]
