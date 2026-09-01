@@ -1,0 +1,66 @@
+# Runs src/train.py once as a batch Job.
+# Prereqs: namespace.yaml, configmap.yaml, pvc.yaml already applied, and the
+# training image available to the cluster:
+#   docker build -f docker/Dockerfile.train -t mlops-train:v1 .
+#   minikube image load mlops-train:v1      # or: kind load docker-image mlops-train:v1
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: model-training
+  namespace: ml-training
+  labels:
+    app: model-training
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: model-training
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: trainer
+          image: mlops-train:v1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TRAINING_CONFIG_PATH
+              value: /app/configs/training_config.yaml
+            # Uncomment to train on synthetic data (no CIFAR-10 download) --
+            # useful for a fast end-to-end cluster smoke test or an air-gapped run.
+            # - name: SYNTHETIC_DATA
+            #   value: "1"
+            # - name: FAST_DEV_RUN
+            #   value: "1"
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+            - name: data
+              mountPath: /app/data
+            - name: checkpoints
+              mountPath: /app/checkpoints
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+              # --- Bonus: GPU training -------------------------------------
+              # nvidia.com/gpu: 1
+      # nodeSelector:
+      #   accelerator: nvidia-gpu
+      # tolerations:
+      #   - key: nvidia.com/gpu
+      #     operator: Exists
+      #     effect: NoSchedule
+      volumes:
+        - name: config
+          configMap:
+            name: training-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: training-data-pvc
+        - name: checkpoints
+          persistentVolumeClaim:
+            claimName: model-checkpoints-pvc

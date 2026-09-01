@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies (CPU wheels)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/dev.txt --extra-index-url https://download.pytorch.org/whl/cpu
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Unit tests
+        run: pytest -v
+
+      - name: Training smoke test (synthetic data, 1 epoch)
+        env:
+          FAST_DEV_RUN: "1"
+          SYNTHETIC_DATA: "1"
+          TRAINING_CONFIG_PATH: configs/training_config.yaml
+        run: |
+          mkdir -p data checkpoints
+          sed -i 's#/app/data#data#; s#/app/checkpoints#checkpoints#' configs/training_config.yaml
+          python src/train.py
+          test -f checkpoints/classifier_v1.pt
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build training image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.train
+          push: false
+          tags: mlops-train:ci
+      - name: Build serving image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.serve
+          push: false
+          tags: mlops-serve:ci

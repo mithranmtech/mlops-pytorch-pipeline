@@ -1,0 +1,38 @@
+# Serving image: slim base, inference-only dependencies, non-root, health check.
+
+# ---- Stage 1: dependencies ----------------------------------------------
+FROM python:3.11-slim AS base
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+WORKDIR /app
+
+COPY requirements/serve.txt requirements/serve.txt
+RUN python -m venv /opt/venv \
+ && /opt/venv/bin/pip install --upgrade pip \
+ && /opt/venv/bin/pip install -r requirements/serve.txt \
+      --extra-index-url https://download.pytorch.org/whl/cpu
+
+# ---- Stage 2: serving runtime -----------------------------------------
+FROM python:3.11-slim AS serving
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH=/app/src
+WORKDIR /app
+
+RUN useradd --create-home --uid 1000 appuser
+
+COPY --from=base /opt/venv /opt/venv
+COPY src/ ./src/
+COPY configs/ ./configs/
+RUN mkdir -p /app/checkpoints && chown -R appuser:appuser /app
+
+USER appuser
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status == 200 else 1)"
+
+CMD ["uvicorn", "serve:app", "--host", "0.0.0.0", "--port", "8080", "--app-dir", "src"]
