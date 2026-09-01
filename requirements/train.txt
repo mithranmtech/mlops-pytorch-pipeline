@@ -1,0 +1,7 @@
+# Training dependencies. All versions pinned.
+# In Docker these resolve against the PyTorch CPU wheel index (see Dockerfile.train).
+torch==2.5.1
+torchvision==0.20.1
+numpy==2.1.3
+PyYAML==6.0.2
+tensorboard==2.18.0
