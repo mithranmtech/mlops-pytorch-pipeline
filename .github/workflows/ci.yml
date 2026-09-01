@@ -28,9 +28,10 @@ jobs:
       - name: Unit tests
         run: pytest -v
 
-      - name: Training smoke test (1 epoch, few batches)
+      - name: Training smoke test (synthetic data, 1 epoch)
         env:
           FAST_DEV_RUN: "1"
+          SYNTHETIC_DATA: "1"
           TRAINING_CONFIG_PATH: configs/training_config.yaml
         run: |
           mkdir -p data checkpoints
