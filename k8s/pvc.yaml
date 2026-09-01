@@ -1,0 +1,30 @@
+# Persistent storage shared between the training Job and the serving Deployment.
+# The training Job writes the checkpoint; the serving Deployment mounts it read-only.
+#
+# ReadWriteOnce is what single-node clusters (Minikube, kind, Docker Desktop)
+# provide out of the box. On a multi-node cluster the serving replicas may land
+# on different nodes -- switch model-checkpoints-pvc to ReadWriteMany backed by
+# NFS / a cloud filestore, or bake the checkpoint into the serving image instead.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: training-data-pvc
+  namespace: ml-training
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-checkpoints-pvc
+  namespace: ml-training
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
