@@ -26,6 +26,12 @@ spec:
           env:
             - name: TRAINING_CONFIG_PATH
               value: /app/configs/training_config.yaml
+            # Uncomment to train on synthetic data (no CIFAR-10 download) --
+            # useful for a fast end-to-end cluster smoke test or an air-gapped run.
+            # - name: SYNTHETIC_DATA
+            #   value: "1"
+            # - name: FAST_DEV_RUN
+            #   value: "1"
           volumeMounts:
             - name: config
               mountPath: /app/configs
